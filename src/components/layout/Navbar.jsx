@@ -23,7 +23,7 @@ const Navbar = () => {
           <div className="flex items-center gap-6">
             <div className="hidden md:block text-right border-r pr-6 border-gray-100">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Curriculum</p>
-              <p className="text-sm font-bold text-blue-600 leading-none">{grade}</p>
+              <p className="text-sm font-bold text-blue-600 leading-none">Grade {grade}</p>
             </div>
             
             <button className="text-gray-400 hover:text-blue-600 transition-colors">

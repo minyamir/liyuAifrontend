@@ -8,6 +8,7 @@ import Register from './pages/auth/Register';
 import GradeSelection from './pages/auth/GradeSelection';
 import Dashboard from './pages/dashboard/Dashboard';
 import StudyRoom from './pages/study/StudyRoom';
+import LandingPage from './pages/LandingPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       <AuthProvider>
         <StudyProvider>
           <Routes> 
+            <Route path='/' element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
              

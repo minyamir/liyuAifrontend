@@ -1,43 +1,34 @@
 import React, { createContext, useContext, useState } from 'react';
+import { useAuth } from './AuthContext'; // Import Auth
 
 const StudyContext = createContext();
 
 export const StudyProvider = ({ children }) => {
-  // --- GRADE & STREAM STATE ---
-  const [grade, setGrade] = useState(localStorage.getItem('user_grade') || 'Grade 9');
+  // Borrow identity from Auth Master
+  const { user } = useAuth();
   
-  // NEW: Added stream state to handle Natural/Social selection
-  const [stream, setStream] = useState(localStorage.getItem('user_stream') || 'both');
+  // These become "Derived State" (automatic updates)
+  const userName = user?.name || "Student";
+  const grade = user?.grade_level || "7";
+  const stream = user?.study_field || "both";
 
-  // --- CHAT & FILE STATE ---
   const [currentSubject, setCurrentSubject] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [uploadedFile, setUploadedFile] = useState(null);
 
-  const addMessage = (role, content) => {
-    setMessages(prev => [...prev, { 
-      role, 
-      content, 
-      id: Date.now(),
-      timestamp: new Date().toISOString() 
-    }]);
-  };
-
-  const clearChat = () => setMessages([]);
+  // ... (rest of your addMessage logic)
 
   return (
     <StudyContext.Provider value={{ 
-      grade, 
-      setGrade, 
-      stream,        // Added to Provider
-      setStream,     // Added to Provider
+      userName, // Now comes from Auth
+      grade,    // Now comes from Auth
+      stream,   // Now comes from Auth
+      sessionId,
+      setSessionId,
       currentSubject, 
       setCurrentSubject, 
       messages, 
-      addMessage, 
-      clearChat,
-      uploadedFile, 
-      setUploadedFile 
+      setMessages
     }}>
       {children}
     </StudyContext.Provider>
