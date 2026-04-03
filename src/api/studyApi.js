@@ -23,10 +23,15 @@ export const getSubjects = async () => {
  * Returns: { session_id, subject, grade, feild, language, created }
  */
 export const startStudySession = async (subjectId) => {
+  try {
   const response = await apiPrivate.post("/api/studyroom/start/", {
     subject_id: subjectId,
   });
   return response.data;
+  } catch (error) {
+    console.error("Error starting study session:", error);
+    throw error;
+  }
 };
 
 /**
