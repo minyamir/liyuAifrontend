@@ -14,13 +14,11 @@ function App() {
     <Router>
       <AuthProvider>
         <StudyProvider>
-          <Routes>
-            {/* Auth Routes */}
+          <Routes> 
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
-            {/* App Routes */}
-            <Route path="/" element={<GradeSelection />} />
+             
+            <Route path="/grade-selection" element={<GradeSelection />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/study/:subjectId" element={<StudyRoom />} />
           </Routes>

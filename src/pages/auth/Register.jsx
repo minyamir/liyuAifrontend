@@ -7,7 +7,7 @@ const Register = () => {
   const navigate = useNavigate();
 
   const handleRegisterSuccess = () => {
-    navigate('/grade-selection');
+    navigate('/login');
   };
 
   return (

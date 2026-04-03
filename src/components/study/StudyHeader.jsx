@@ -24,7 +24,7 @@ const StudyHeader = ({ title, grade, onUploadClick }) => {
           className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
         >
           <Upload size={14} />
-          Change Book
+          Uploads
         </button>
       </div>
     </div>
