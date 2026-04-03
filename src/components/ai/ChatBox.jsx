@@ -3,11 +3,11 @@ import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import AIStatusBadge from './AIStatusBadge';
 import LanguageToggle from './LanguageToggle';
+import { sendAiMessage } from '../../api/aiApi';
+import { useStudy } from '../../contexts/StudyContext';
 
-const ChatBox = ({ attachments }) => {
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Hello! I'm Liyu AI. I've loaded your study materials. How can I help you today?", isAi: true }
-  ]);
+const ChatBox = ({ attachments, activeSessionId }) => {
+  const { messages, setMessages } = useStudy();
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
 
@@ -18,24 +18,44 @@ const ChatBox = ({ attachments }) => {
     }
   }, [messages, isTyping]);
 
-  const handleSendMessage = (text) => {
-    if (!text.trim()) return;
+const handleSendMessage = async (text) => {
+    if (!text.trim() || !activeSessionId) {
+      console.error("No Session ID found in ChatBox");
+      return
+    };
 
+    // 1. Add User Message to UI
     const userMsg = { id: Date.now(), text, isAi: false };
     setMessages(prev => [...prev, userMsg]);
+    console.log("User message added to state:", text);
     
     setIsTyping(true);
     
-    // Simulate AI logic
-    setTimeout(() => {
+    try {
+      // 2. Call the Real Backend
+      // The backend will automatically look for the "is_active=True" book
+      const response = await sendAiMessage(activeSessionId, text);
+      
+      // 3. Add AI Response to UI
       const aiResponse = { 
         id: Date.now() + 1, 
-        text: `Looking at the lesson on the left, regarding "${text}", I found that...`, 
+        text: response.reply, // The 'reply' key from your Django view
         isAi: true 
       };
+      
       setMessages(prev => [...prev, aiResponse]);
+    } catch (err) {
+      console.error("Chat Error:", err);
+      const errorMsg = {
+        id: Date.now() + 2,
+        text: "Sorry, I'm having trouble connecting to my brain. Please try again.",
+        isAi: true,
+        isError: true // You can style this red in MessageBubble
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -51,7 +71,7 @@ const ChatBox = ({ attachments }) => {
           <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider">
-              {attachments.length} Active Contexts
+              Learning from {attachments.length > 0 ? attachments.length + 1 : 1} Sources
             </span>
           </div>
         )}

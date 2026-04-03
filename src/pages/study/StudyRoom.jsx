@@ -224,7 +224,7 @@ const handleFileUpload = async (file) => {
 
           {/* TAB CONTENT */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            {activeTab === 'chat' && <ChatBox attachments={references} />}
+            {activeTab === 'chat' && <ChatBox attachments={references} activeSessionId={activeSessionId} />}
             {activeTab === 'summary' && <AISummary />}
             {activeTab === 'quiz' && <AIQuiz />}
           </div>

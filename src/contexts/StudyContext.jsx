@@ -15,6 +15,7 @@ export const StudyProvider = ({ children }) => {
   const [currentSubject, setCurrentSubject] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [language, setLanguage] = useState('EN');
 
   // ... (rest of your addMessage logic)
 
@@ -28,7 +29,9 @@ export const StudyProvider = ({ children }) => {
       currentSubject, 
       setCurrentSubject, 
       messages, 
-      setMessages
+      setMessages,
+      language,
+      setLanguage,
     }}>
       {children}
     </StudyContext.Provider>

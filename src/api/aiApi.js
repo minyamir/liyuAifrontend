@@ -9,7 +9,7 @@ export const sendAiMessage = async (sessionId, message) => {
 };
 
 export const updateStudyLanguage = async (sessionId, language) => {
-  const response = await apiPrivate.post('/api/studyroom/update-language/', {
+  const response = await apiPrivate.patch('/api/studyroom/update-language/', {
     session_id: sessionId,
     language: language // "en" or "am"
   });
