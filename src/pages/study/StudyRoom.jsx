@@ -9,10 +9,13 @@ import AIQuiz from '../../components/study/QuizPanel';
 import { useStudy } from '../../contexts/StudyContext';
 import { uploadFile, getSessionFiles,activateFile, deleteFile } from '../../api/uploadApi';  
 import { BookOpen, Plus, X, Sparkles, BrainCircuit, MessageSquare, Loader2 } from 'lucide-react';
+import { getAiSummary, getAiQuiz } from '../../api/aiApi';
 
 const StudyRoom = () => {
   const location = useLocation();
   const { grade, sessionId } = useStudy();
+  const activeSessionId = sessionId || location.state?.sessionId;
+
   const [pdfUrl, setPdfUrl] = useState(null);
   const [references, setReferences] = useState([]); 
   const [activeUrl, setActiveUrl] = useState(null);
@@ -20,8 +23,10 @@ const StudyRoom = () => {
   const [mainBookId, setMainBookId] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Inside StudyRoom.jsx
-const activeSessionId = sessionId || location.state?.sessionId;
+  const [summary, setSummary] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+ 
 
 useEffect(() => {
   const syncSessionFiles = async () => {
@@ -53,9 +58,35 @@ useEffect(() => {
     }
   };
 
-  syncSessionFiles();
-  // STABLE ARRAY: only depends on the value of the ID
+  syncSessionFiles(); 
 }, [activeSessionId]);
+
+const fetchSummary = async () => {
+    if (!activeSessionId) return;
+    setLoadingAI(true);
+    try {
+      const data = await getAiSummary(activeSessionId);
+      setSummary(data);
+    } catch (err) { 
+      console.error("Summary error:", err); 
+    } finally { 
+      setLoadingAI(false); 
+    }
+  };
+
+  const fetchQuiz = async () => {
+    if (!activeSessionId) return;
+    setLoadingAI(true);
+    try {
+      const data = await getAiQuiz(activeSessionId);
+      setQuiz(data);
+    } catch (err) { 
+      console.error("Quiz error:", err); 
+    } finally { 
+      setLoadingAI(false); 
+    }
+  };
+
 
   // 2. Real Upload Logic: Sends file to Django
 const handleFileUpload = async (file) => {
@@ -97,13 +128,13 @@ const handleFileUpload = async (file) => {
     }
   };
 
-  const handleTabSwitch = async (fileId, url) => {
-  // 1. Update UI immediately so it feels fast
+  const handleTabSwitch = async (fileId, url) => { 
   setActiveUrl(url);
+  setSummary(null);
+  setQuiz(null);
 
-  try {
-    // 2. Tell Django this is now the "Context" for AI
-    await activateFile(fileId);
+  try { 
+    await activateFile(fileId); 
     console.log("AI Context switched to File ID:", fileId);
   } catch (err) {
     console.error("Failed to sync AI context:", err);
@@ -225,8 +256,8 @@ const handleFileUpload = async (file) => {
           {/* TAB CONTENT */}
           <div className="flex-1 overflow-hidden flex flex-col">
             {activeTab === 'chat' && <ChatBox attachments={references} activeSessionId={activeSessionId} />}
-            {activeTab === 'summary' && <AISummary />}
-            {activeTab === 'quiz' && <AIQuiz />}
+            {activeTab === 'summary' && <AISummary summaryData={summary} onGenerate={fetchSummary} loading={loadingAI} />}
+            {activeTab === 'quiz' && <AIQuiz quizData={quiz} onGenerate={fetchQuiz} loading={loadingAI}/>}
           </div>
 
         </div>
