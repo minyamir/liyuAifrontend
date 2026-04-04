@@ -3,13 +3,41 @@ import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import AIStatusBadge from './AIStatusBadge';
 import LanguageToggle from './LanguageToggle';
-import { sendAiMessage } from '../../api/aiApi';
+import { sendAiMessage, getChatHistory } from '../../api/aiApi';
 import { useStudy } from '../../contexts/StudyContext';
 
 const ChatBox = ({ attachments, activeSessionId }) => {
   const { messages, setMessages } = useStudy();
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!activeSessionId) return;
+      
+      setIsLoadingHistory(true);
+      try {
+        const history = await getChatHistory(activeSessionId);
+        
+        // Map backend fields to frontend state format
+        const formattedHistory = history.map(msg => ({
+          id: msg.id,
+          text: msg.message,
+          isAi: msg.sender === 'ai',
+          timestamp: msg.timestamp // Optional: pass to Bubble
+        }));
+        
+        setMessages(formattedHistory);
+      } catch (err) {
+        console.error("Failed to load history:", err);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    fetchHistory();
+  }, [activeSessionId, setMessages]);
 
   // Smooth scroll to bottom
   useEffect(() => {
@@ -82,6 +110,12 @@ const handleSendMessage = async (text) => {
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative z-0"
       >
+        {isLoadingHistory && (
+           <div className="flex justify-center py-4">
+              <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+           </div>
+        )}
+        
         {messages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}

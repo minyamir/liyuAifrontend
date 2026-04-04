@@ -8,6 +8,13 @@ export const sendAiMessage = async (sessionId, message) => {
   return response.data; // Returns { reply: "..." }
 };
 
+export const getChatHistory = async (sessionId) => {
+  const response = await apiPrivate.get(`/api/ai/chat/`, {
+    params: { session_id: sessionId } 
+  });
+  return response.data;
+};
+
 export const updateStudyLanguage = async (sessionId, language) => {
   const response = await apiPrivate.patch('/api/studyroom/update-language/', {
     session_id: sessionId,
