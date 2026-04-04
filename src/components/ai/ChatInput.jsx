@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SendHorizonal } from 'lucide-react';
 import VoiceButton from './VoiceButton';
+import { useStudy } from '../../contexts/StudyContext';
 
 const ChatInput = ({ onSend, disabled }) => {
   const [input, setInput] = useState('');
   const textareaRef = useRef(null);
+  const { language } = useStudy();
+
+  const speechLang = language === 'am' ? 'am-ET' : 'en-US';
 
   // Auto-resize textarea height based on content
   useEffect(() => {
@@ -54,7 +58,24 @@ const ChatInput = ({ onSend, disabled }) => {
 
       <div className="flex gap-1.5 pb-1 pr-1 items-center">
         {/* Voice Input Trigger */}
-        <VoiceButton />
+        <VoiceButton
+  onTranscript={(transcript) => { 
+    setInput((prev) => { 
+      // Clean up the previous input
+      const currentInput = prev.trim();
+      
+      if (!currentInput) return transcript; 
+
+      // If the transcript is already at the very end of the input, don't add it again
+      if (currentInput.toLowerCase().endsWith(transcript.toLowerCase())) {
+        return prev;
+      }
+      
+      return `${prev} ${transcript}`;
+    });
+  }}
+  language={speechLang}
+/>
 
         {/* Send Button */}
         <button

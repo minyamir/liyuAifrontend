@@ -1,16 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import AIStatusBadge from './AIStatusBadge';
 import LanguageToggle from './LanguageToggle';
 import { sendAiMessage, getChatHistory } from '../../api/aiApi';
 import { useStudy } from '../../contexts/StudyContext';
+import { liyuVoice } from '../../utils/voiceEngine';
 
 const ChatBox = ({ attachments, activeSessionId }) => {
   const { messages, setMessages } = useStudy();
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    liyuVoice.enabled = voiceEnabled;
+    if (!voiceEnabled) liyuVoice.stop();
+  }, [voiceEnabled]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -47,40 +55,40 @@ const ChatBox = ({ attachments, activeSessionId }) => {
   }, [messages, isTyping]);
 
 const handleSendMessage = async (text) => {
-    if (!text.trim() || !activeSessionId) {
-      console.error("No Session ID found in ChatBox");
-      return
-    };
+    if (!text.trim() || !activeSessionId) return;
 
-    // 1. Add User Message to UI
     const userMsg = { id: Date.now(), text, isAi: false };
     setMessages(prev => [...prev, userMsg]);
-    console.log("User message added to state:", text);
-    
     setIsTyping(true);
     
+    // Stop any current reading when a new message is sent
+    liyuVoice.stop();
+
     try {
-      // 2. Call the Real Backend
-      // The backend will automatically look for the "is_active=True" book
       const response = await sendAiMessage(activeSessionId, text);
       
-      // 3. Add AI Response to UI
       const aiResponse = { 
         id: Date.now() + 1, 
-        text: response.reply, // The 'reply' key from your Django view
+        text: response.reply, 
         isAi: true 
       };
       
       setMessages(prev => [...prev, aiResponse]);
+
+      // --- VOICE TRIGGER ---
+      // Read the AI response automatically if voice is on
+      if (voiceEnabled) {
+        liyuVoice.speak(response.reply);
+      }
+
     } catch (err) {
       console.error("Chat Error:", err);
-      const errorMsg = {
+      setMessages(prev => [...prev, {
         id: Date.now() + 2,
-        text: "Sorry, I'm having trouble connecting to my brain. Please try again.",
+        text: "Sorry, I'm having trouble connecting to my brain.",
         isAi: true,
-        isError: true // You can style this red in MessageBubble
-      };
-      setMessages(prev => [...prev, errorMsg]);
+        isError: true 
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -93,6 +101,16 @@ const handleSendMessage = async (text) => {
         <div className="flex items-center gap-3">
           <AIStatusBadge status={isTyping ? 'thinking' : 'ready'} />
           <LanguageToggle /> 
+
+          <button 
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={`p-2 rounded-lg transition-colors ${
+              voiceEnabled ? 'text-blue-600 bg-blue-50' : 'text-slate-400 bg-slate-100'
+            }`}
+            title={voiceEnabled ? "Mute AI" : "Unmute AI"}
+          >
+            {voiceEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
         </div>
         
         {attachments?.length > 0 && (
