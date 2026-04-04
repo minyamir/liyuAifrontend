@@ -22,3 +22,5 @@ public/books/
 *.njsproj
 *.sln
 *.sw?
+
+.env
