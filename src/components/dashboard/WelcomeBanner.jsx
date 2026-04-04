@@ -22,7 +22,7 @@ const WelcomeBanner = ({ userName = "Student", grade = "12th" }) => {
           </h1>
           
           <p className="text-slate-400 text-lg font-medium max-w-lg leading-relaxed">
-            Ready to master your <span className="text-white font-bold underline decoration-blue-500 underline-offset-4">{grade}</span> curriculum? 
+            Ready to master your <span className="text-white font-bold underline decoration-blue-500 underline-offset-4">Grade {grade}</span> curriculum? 
             Your AI teacher has analyzed your progress.
           </p>
 

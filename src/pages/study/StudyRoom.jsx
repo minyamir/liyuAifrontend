@@ -5,48 +5,160 @@ import ChatBox from '../../components/ai/ChatBox';
 import StudyHeader from '../../components/study/StudyHeader';
 import UploadBox from '../../components/study/UploadBox';
 import AISummary from '../../components/study/SummaryPanel'; 
-import AIQuiz from '../../components/study/QuizPanel';      
+import AIQuiz from '../../components/study/QuizPanel';    
 import { useStudy } from '../../contexts/StudyContext';
-import { BookOpen, Plus, X, Sparkles, BrainCircuit, MessageSquare } from 'lucide-react';
+import { uploadFile, getSessionFiles,activateFile, deleteFile } from '../../api/uploadApi';  
+import { BookOpen, Plus, X, Sparkles, BrainCircuit, MessageSquare, Loader2 } from 'lucide-react';
+import { getAiSummary, getAiQuiz } from '../../api/aiApi';
 
 const StudyRoom = () => {
   const location = useLocation();
-  const { grade } = useStudy();
+  const { grade, sessionId } = useStudy();
+  const activeSessionId = sessionId || location.state?.sessionId;
+
   const [pdfUrl, setPdfUrl] = useState(null);
   const [references, setReferences] = useState([]); 
   const [activeUrl, setActiveUrl] = useState(null);
   const [activeTab, setActiveTab] = useState('chat'); 
+  const [mainBookId, setMainBookId] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    if (location.state?.fileUrl) {
-      const url = location.state.fileUrl;
-      setPdfUrl(url);
-      setActiveUrl(url);
-    }
-  }, [location.state]);
+  const [summary, setSummary] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+ 
 
-  const handleFileUpload = (file) => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const newRef = { id: Date.now(), name: file.name, url: url };
-    
-    if (!pdfUrl) {
-      setPdfUrl(url);
-      setActiveUrl(url);
-    } else {
-      setReferences(prev => [...prev, newRef]);
-      setActiveUrl(url); 
+useEffect(() => {
+  const syncSessionFiles = async () => {
+    if (!activeSessionId) return;
+
+    try { 
+      const files = await getSessionFiles(activeSessionId);
+      
+      if (files && files.length > 0) {
+        const mainBook = files.find(f => f.is_system_file) || files[0];
+        setMainBookId(mainBook.id);
+        const userRefs = files.filter(f => !f.is_system_file);
+        // Ensure absolute URL
+        const baseUrl = "http://127.0.0.1:8000";
+        const formattedUrl = mainBook.file.startsWith('http') 
+          ? mainBook.file 
+          : `${baseUrl}${mainBook.file}`; 
+
+        setPdfUrl(formattedUrl);
+        setActiveUrl(formattedUrl);
+        setReferences(userRefs.map(f => ({
+          id: f.id,
+          name: f.name,
+          url: f.file.startsWith('http') ? f.file : `${baseUrl}${f.file}`
+        })));
+      }
+    } catch (err) {
+      console.error("Sync Error:", err);
     }
   };
 
-  const removeReference = (e, id, url) => {
-    e.stopPropagation();
-    setReferences(prev => {
-      const filtered = prev.filter(ref => ref.id !== id);
-      if (activeUrl === url) setActiveUrl(pdfUrl);
-      return filtered;
-    });
-    URL.revokeObjectURL(url);
+  syncSessionFiles(); 
+}, [activeSessionId]);
+
+const fetchSummary = async () => {
+    if (!activeSessionId) return;
+    setLoadingAI(true);
+    try {
+      const data = await getAiSummary(activeSessionId);
+      setSummary(data);
+    } catch (err) { 
+      console.error("Summary error:", err); 
+    } finally { 
+      setLoadingAI(false); 
+    }
+  };
+
+  const fetchQuiz = async () => {
+    if (!activeSessionId) return;
+    setLoadingAI(true);
+    try {
+      const data = await getAiQuiz(activeSessionId);
+      setQuiz(data);
+    } catch (err) { 
+      console.error("Quiz error:", err); 
+    } finally { 
+      setLoadingAI(false); 
+    }
+  };
+
+
+  // 2. Real Upload Logic: Sends file to Django
+const handleFileUpload = async (file) => {
+  console.log("Upload triggered for session:", activeSessionId);
+    if (!file || !sessionId) {
+      console.error("Missing file or Session ID!");
+      return
+    };
+    
+    try {
+      setUploading(true);
+      const uploadedData = await uploadFile(file, sessionId);
+      console.log("Django responded:", uploadedData);
+      // FIX: Ensure the new URL has the backend prefix
+      const baseUrl = "http://127.0.0.1:8000";
+      const fullUrl = uploadedData.file.startsWith('http') 
+        ? uploadedData.file 
+        : `${baseUrl}${uploadedData.file}`;
+
+      const newRef = { 
+        id: uploadedData.id, 
+        name: uploadedData.name, // This works now because of our Serializer fix!
+        url: fullUrl 
+      };
+      
+      if (!pdfUrl) {
+        setPdfUrl(fullUrl);
+        setActiveUrl(fullUrl);
+      } else {
+        setReferences(prev => [...prev, newRef]);
+        setActiveUrl(fullUrl); 
+      }
+    } catch (err) {
+      // Logic for Gemini Refusal
+      const errorMsg = err.response?.data?.error || "Check your internet or file type.";
+      alert(`Liyu AI: ${errorMsg}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleTabSwitch = async (fileId, url) => { 
+  setActiveUrl(url);
+  setSummary(null);
+  setQuiz(null);
+
+  try { 
+    await activateFile(fileId); 
+    console.log("AI Context switched to File ID:", fileId);
+  } catch (err) {
+    console.error("Failed to sync AI context:", err);
+  }
+};
+
+  const removeReference = async (e, id, url) => {
+    e.stopPropagation(); // Stop the tab from being selected while deleting
+    
+    try {
+      // 1. Tell Django to delete the physical file
+      await deleteFile(id); 
+      
+      // 2. Update UI State
+      setReferences(prev => {
+        const filtered = prev.filter(ref => ref.id !== id);
+        // If we were looking at the deleted file, switch back to the main textbook
+        if (activeUrl === url) setActiveUrl(pdfUrl);
+        return filtered;
+      });
+    } catch (err) {
+      console.error("Failed to delete file from server:", err);
+      alert("Could not delete file. It might already be gone.");
+    }
   };
 
   return (
@@ -65,20 +177,19 @@ const StudyRoom = () => {
             <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100 overflow-x-auto no-scrollbar">
               {/* Main Book Tab */}
               <button 
-                onClick={() => setActiveUrl(pdfUrl)}
+                onClick={() => handleTabSwitch(mainBookId, pdfUrl)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all whitespace-nowrap ${
                   activeUrl === pdfUrl ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-transparent text-slate-500 hover:bg-slate-100'
                 }`}
               >
-                <BookOpen size={14} />
-                <span className="text-[10px] font-black uppercase tracking-wider">Main Textbook</span>
+                <BookOpen size={14} /> 
               </button>
 
               {/* Reference Tabs */}
               {references.map((ref) => (
                 <div key={ref.id} className="relative group">
                   <button 
-                    onClick={() => setActiveUrl(ref.url)}
+                    onClick={() => handleTabSwitch(ref.id, ref.url)}
                     className={`flex items-center gap-2 pl-3 pr-8 py-1.5 rounded-lg border-2 transition-all whitespace-nowrap ${
                       activeUrl === ref.url ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-transparent text-slate-500 hover:bg-slate-100'
                     }`}
@@ -86,21 +197,25 @@ const StudyRoom = () => {
                     <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                     <span className="text-[10px] font-black uppercase truncate max-w-[100px]">{ref.name}</span>
                   </button>
-                  <button 
+                  {ref.source_type !== 'system' &&(<button 
                     onClick={(e) => removeReference(e, ref.id, ref.url)}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-red-500 rounded-md transition-all"
                   >
                     <X size={12} strokeWidth={3} />
-                  </button>
+                  </button>)}
                 </div>
               ))}
 
-              <button 
-                onClick={() => document.getElementById('file-upload-room').click()}
-                className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-500 text-slate-400 transition-all"
-              >
-                <Plus size={18} />
-              </button>
+              {uploading ? (
+                <Loader2 className="animate-spin text-blue-600 ml-2" size={18} />
+              ) : (
+                <button 
+                  onClick={() => document.getElementById('file-upload-room').click()}
+                  className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-500 text-slate-400 transition-all"
+                >
+                  <Plus size={18} />
+                </button>
+              )}
             </div>
           )}
 
@@ -140,9 +255,9 @@ const StudyRoom = () => {
 
           {/* TAB CONTENT */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            {activeTab === 'chat' && <ChatBox attachments={references} />}
-            {activeTab === 'summary' && <AISummary pdfUrl={activeUrl} />}
-            {activeTab === 'quiz' && <AIQuiz pdfUrl={activeUrl} />}
+            {activeTab === 'chat' && <ChatBox attachments={references} activeSessionId={activeSessionId} />}
+            {activeTab === 'summary' && <AISummary summaryData={summary} onGenerate={fetchSummary} loading={loadingAI} />}
+            {activeTab === 'quiz' && <AIQuiz quizData={quiz} onGenerate={fetchQuiz} loading={loadingAI}/>}
           </div>
 
         </div>

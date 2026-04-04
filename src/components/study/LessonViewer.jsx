@@ -11,7 +11,7 @@ const LessonViewer = ({ url }) => {
   return (
     // h-full here is critical
     <div className="h-full w-full bg-slate-100 overflow-hidden">
-      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
+      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
         {/* We use a style object here because sometimes Tailwind's h-full 
             gets collapsed by the flex parent */}
         <div style={{ height: '100%', width: '100%' }}>
